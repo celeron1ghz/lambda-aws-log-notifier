@@ -1,0 +1,13 @@
+{
+  "name": "lambda_log_notifier",
+  "version": "1.0.0",
+  "description": "application log notify to slack",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.210.0",
+    "slack-node": "^0.1.8",
+    "vo": "^4.0.2",
+    "zlib": "^1.0.5"
+  }
+}
