@@ -10,8 +10,8 @@ const lambda = new aws.Lambda();
 const sleep = () => new Promise((resolve,reject) => setTimeout(resolve, 1000));
 
 vo(function*(){
-  const skipLogGroup = "netatmo2lametric,log-notifier-dev-main,codedeploy-agent,aws-slack-notifier,codedeploy-updater".split(',');
-  const loggerLambdaArn = yield lambda.getFunction({ FunctionName: "log-notifier-dev-main" })
+  const skipLogGroup = "netatmo2lametric,aws-log-notifier-dev-main,codedeploy-agent,aws-status-notifier,codedeploy-updater".split(',');
+  const loggerLambdaArn = yield lambda.getFunction({ FunctionName: "aws-log-notifier-dev-main" })
     .promise()
     .then(data => data.Configuration.FunctionArn.replace('updater', 'main'));
 
@@ -33,27 +33,30 @@ vo(function*(){
         .promise()
         .then(data => data.subscriptionFilters.filter(s => s.destinationArn === loggerLambdaArn).length);
 
-    if (!subscribed) {
-      console.log("SUBSCRIBE", log.name);
-
-      const splitted = log.name.split('/');
-      const basename = splitted[splitted.length - 1];
-
-      yield lambda.addPermission({
-        Action: "lambda:InvokeFunction",
-        FunctionName: loggerLambdaArn,
-        Principal: `logs.${Region}.amazonaws.com`,
-        SourceArn: `arn:aws:logs:${Region}:${AccountId}:log-group:${log.name}:*`,
-        StatementId: basename,
-      }).promise();
-
-      yield logs.putSubscriptionFilter({
-        logGroupName: log.name,
-        filterName: log.name,
-        filterPattern: '',
-        destinationArn: loggerLambdaArn,
-      }).promise();
+    if (subscribed) {
+      console.log("ALREADY_SUBSCRIBED", log.name);
+      continue;
     }
+
+    console.log("SUBSCRIBE", log.name);
+
+    const splitted = log.name.split('/');
+    const basename = splitted[splitted.length - 1];
+
+    yield lambda.addPermission({
+      Action: "lambda:InvokeFunction",
+      FunctionName: loggerLambdaArn,
+      Principal: `logs.${Region}.amazonaws.com`,
+      SourceArn: `arn:aws:logs:${Region}:${AccountId}:log-group:${log.name}:*`,
+      StatementId: basename,
+    }).promise();
+
+    yield logs.putSubscriptionFilter({
+      logGroupName: log.name,
+      filterName: log.name,
+      filterPattern: '',
+      destinationArn: loggerLambdaArn,
+    }).promise();
   }
 
   console.log("OK");

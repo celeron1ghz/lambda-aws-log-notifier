@@ -10,13 +10,13 @@ const lambda = new aws.Lambda();
 const sleep = () => new Promise((resolve,reject) => setTimeout(resolve, 1000));
 
 vo(function*(){
-  const policy = yield lambda.getPolicy({ FunctionName: "log-notifier-dev-main" }).promise();
+  const policy = yield lambda.getPolicy({ FunctionName: "aws-log-notifier-dev-main" }).promise();
   const policies = JSON.parse(policy.Policy);
 
   for (const p of policies.Statement) {
       console.log("remove lambda perm", p.Sid);
       yield lambda.removePermission({
-        FunctionName: "log-notifier-dev-main",
+        FunctionName: "aws-log-notifier-dev-main",
         StatementId: p.Sid,
       }).promise();
   }

@@ -25,7 +25,7 @@ provider:
       Resource:
         Fn::Join: [ ":", ["arn:aws:logs", { Ref: AWS::Region }, { Ref: AWS::AccountId }, "log-group", "*", "*"]]
   environment:
-    SKIP_LOG_GROUP: "netatmo2lametric,log-notifier-dev-main,codedeploy-agent,aws-slack-notifier,codedeploy-updater"
+    SKIP_LOG_GROUP: "netatmo2lametric,aws-log-notifier-dev-main,codedeploy-agent,aws-status-notifier,codedeploy-updater"
 
 functions:
   main:
