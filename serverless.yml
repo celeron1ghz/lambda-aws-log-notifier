@@ -31,6 +31,8 @@ functions:
   main:
     handler: handler.main
     description: cloudwatch logs data send to slack
+    environment:
+      SLACK_WEBHOOK_URL: "${ssm:/slack/webhook/rawLog~true}"
 
   appender:
     handler: handler.appender

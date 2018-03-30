@@ -41,8 +41,7 @@ module.exports.main = (event, context, callback) => {
       return callback(null, 'NOP');
     }
 
-    const url = (yield ssm.getParameter({ Name: '/slack/webhook/rawLog', WithDecryption: true }).promise() ).Parameter.Value;
-    slack.setWebhook(url);
+    slack.setWebhook(process.env.SLACK_WEBHOOK_URL);
 
     const ret = yield new Promise((resolve,reject) =>
       slack.webhook({
