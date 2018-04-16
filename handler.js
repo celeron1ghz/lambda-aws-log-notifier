@@ -3,15 +3,13 @@
 const Slack = require('slack-node');
 const slack = new Slack();
 const zlib = require('zlib');
-const vo  = require('vo');
 const aws = require('aws-sdk');
-const ssm = new aws.SSM();
 const logs = new aws.CloudWatchLogs();
 const lambda = new aws.Lambda();
 
-module.exports.main = (event, context, callback) => {
-  vo(function*(){
-    const zip = yield new Promise((resolve,reject) =>
+module.exports.main = async (event, context, callback) => {
+  try {
+    const zip = await new Promise((resolve,reject) =>
       zlib.gunzip(new Buffer(event.awslogs.data, 'base64'), (err, res) => {
         if (err) { reject(err) } else { resolve(res) }
       })
@@ -43,7 +41,7 @@ module.exports.main = (event, context, callback) => {
 
     slack.setWebhook(process.env.SLACK_WEBHOOK_URL);
 
-    const ret = yield new Promise((resolve,reject) =>
+    const ret = await new Promise((resolve,reject) =>
       slack.webhook({
         username: username,
         mrkdwn: true,
@@ -53,14 +51,13 @@ module.exports.main = (event, context, callback) => {
 
     console.log(ret);
     callback(null, "OK");
-  })
-  .catch(err => {
+  } catch (err) {
     console.log("Error:", err);
     callback(err);
-  });
+  }
 };
 
-module.exports.appender = (event, context, callback) => {
+module.exports.appender = async (event, context, callback) => {
   const logGroup = event.detail.requestParameters.logGroupName;
   const skipLogGroup = process.env.SKIP_LOG_GROUP.split(',');
 
@@ -69,8 +66,8 @@ module.exports.appender = (event, context, callback) => {
     return callback(null,"OK");
   }
 
-  vo(function*(){
-    const loggerLambdaArn = yield lambda.getFunction({ FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME })
+  try {
+    const loggerLambdaArn = await lambda.getFunction({ FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME })
       .promise()
       .then(data => data.Configuration.FunctionArn.replace('appender', 'main'));
 
@@ -83,7 +80,7 @@ module.exports.appender = (event, context, callback) => {
     if (event.detail.eventName === "CreateLogGroup") {
       console.log("SUBSCRIBE", logGroup);
 
-      yield lambda.addPermission({
+      await lambda.addPermission({
         Action: "lambda:InvokeFunction",
         FunctionName: loggerLambdaArn,
         Principal: `logs.${Region}.amazonaws.com`,
@@ -91,7 +88,7 @@ module.exports.appender = (event, context, callback) => {
         StatementId: basename,
       }).promise();
 
-      yield logs.putSubscriptionFilter({
+      await logs.putSubscriptionFilter({
         logGroupName: logGroup,
         filterName: logGroup,
         filterPattern: '',
@@ -102,16 +99,15 @@ module.exports.appender = (event, context, callback) => {
     if (event.detail.eventName === "DeleteLogGroup") {
       console.log("UNSUBSCRIBE", logGroup);
 
-      yield lambda.removePermission({
+      await lambda.removePermission({
         FunctionName: loggerLambdaArn,
         StatementId: basename,
       }).promise();
     }
 
     callback(null,"OK");
-  })
-  .catch(err => {
+  } catch (err) {
     console.log("Error:", err);
     callback(err);
-  });
+  }
 };
