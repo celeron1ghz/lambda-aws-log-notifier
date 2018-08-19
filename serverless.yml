@@ -48,3 +48,7 @@ resources:
     MainLogGroup:
       Properties:
         RetentionInDays: 7
+
+    IamRoleLambdaExecution:
+      Properties:
+        RoleName: "${self:service}"
