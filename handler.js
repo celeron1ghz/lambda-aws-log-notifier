@@ -57,6 +57,37 @@ module.exports.main = async (event, context, callback) => {
   }
 };
 
+module.exports.appender = async (event, context, callback) => {
+  const logGroup = event.detail.requestParameters.logGroupName;
+  const skipLogGroup = process.env.SKIP_LOG_GROUP.split(',');
+
+  if (skipLogGroup.filter(l => l.name === logGroup).length !== 0) {
+    console.log("SKIP_SUCSCRIPTION", logGroup);
+    return callback(null,"OK");
+  }
+
+  try {
+    const thisArn = await lambda.getFunction({ FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME })
+      .promise()
+      .then(data => data.Configuration.FunctionArn);
+
+    const loggerArns = ['main', 'main2'].map(t => thisArn.replace('appender', t));
+
+    if (event.detail.eventName === "CreateLogGroup") {
+        await CreateLogGroup(logGroup, loggerArns);
+    }
+
+    if (event.detail.eventName === "DeleteLogGroup") {
+        await DeleteLogGroup(logGroup, loggerArns);
+    }
+
+    callback(null, "OK");
+  } catch (err) {
+    console.log("Error:", err);
+    callback(null, err);
+  }
+};
+
 
 async function CreateLogGroup (logGroup, loggerArns) {
   const notEmptyLoggerArn = loggerArns.map(async arn =>
@@ -116,7 +147,7 @@ async function DeleteLogGroup (logGroup, loggerArns) {
     if (ret)    {
       // policy exist check
       if (ret.data.Statement.filter(s => s.Sid === stmtId).length == 0)  {
-        console.log("NOT_EXIST", stmtId, "on", loggerArn);
+        console.log("PERMISSION_NOT_EXIST", stmtId, "on", loggerArn);
         continue;
       }
     }
@@ -128,35 +159,3 @@ async function DeleteLogGroup (logGroup, loggerArns) {
       .catch(err => { console.log("Error on removePermission:", err) });
   }
 }
-
-
-module.exports.appender = async (event, context, callback) => {
-  const logGroup = event.detail.requestParameters.logGroupName;
-  const skipLogGroup = process.env.SKIP_LOG_GROUP.split(',');
-
-  if (skipLogGroup.filter(l => l.name === logGroup).length !== 0) {
-    console.log("SKIP_SUCSCRIPTION", logGroup);
-    return callback(null,"OK");
-  }
-
-  try {
-    const thisArn = await lambda.getFunction({ FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME })
-      .promise()
-      .then(data => data.Configuration.FunctionArn);
-
-    const loggerArns = ['main', 'main2'].map(t => thisArn.replace('appender', t));
-
-    if (event.detail.eventName === "CreateLogGroup") {
-        await CreateLogGroup(logGroup, loggerArns);
-    }
-
-    if (event.detail.eventName === "DeleteLogGroup") {
-        await DeleteLogGroup(logGroup, loggerArns);
-    }
-
-    callback(null, "OK");
-  } catch (err) {
-    console.log("Error:", err);
-    callback(null, err);
-  }
-};
