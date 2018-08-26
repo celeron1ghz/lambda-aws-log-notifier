@@ -13,9 +13,10 @@ provider:
       Resource:
         - Fn::Join: [ ":", ["arn:aws:lambda", { Ref: AWS::Region }, { Ref: AWS::AccountId }, "function", "${self:service}-dev-appender"]]
     - Effect: Allow
-      Action: [lambda:AddPermission, lambda:removePermission]
+      Action: [lambda:AddPermission, lambda:RemovePermission, lambda:GetPolicy]
       Resource:
         - Fn::Join: [ ":", ["arn:aws:lambda", { Ref: AWS::Region }, { Ref: AWS::AccountId }, "function", "${self:service}-dev-main"]]
+        - Fn::Join: [ ":", ["arn:aws:lambda", { Ref: AWS::Region }, { Ref: AWS::AccountId }, "function", "${self:service}-dev-main2"]]
     - Effect: Allow
       Action: [logs:PutSubscriptionFilter]
       Resource:
@@ -25,6 +26,12 @@ provider:
 
 functions:
   main:
+    handler: handler.main
+    description: cloudwatch logs data send to slack
+    environment:
+      SLACK_WEBHOOK_URL: "${ssm:/slack/webhook/rawLog~true}"
+
+  main2:
     handler: handler.main
     description: cloudwatch logs data send to slack
     environment:

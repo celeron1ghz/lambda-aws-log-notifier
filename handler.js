@@ -57,6 +57,80 @@ module.exports.main = async (event, context, callback) => {
   }
 };
 
+
+async function CreateLogGroup (logGroup, loggerArns) {
+  const notEmptyLoggerArn = loggerArns.map(async arn =>
+    await lambda.getPolicy({ FunctionName: arn })
+      .promise()
+      .then(ret => { return { raw: ret.Policy, data: JSON.parse(ret.Policy) }; })
+      .catch(err => null)
+  );
+
+  for (const loggerArn of loggerArns) {
+    const arns      = loggerArn.split(":");
+    const splitted  = logGroup.split('/');
+    const Region    = arns[3];
+    const AccountId = arns[4];
+    const stmtId    = splitted[splitted.length - 1];
+
+    const ret = await lambda.getPolicy({ FunctionName: loggerArn })
+      .promise()
+      .then(ret => { return { raw: ret.Policy, data: JSON.parse(ret.Policy) }; })
+      .catch(err => null);
+
+    if (ret)    {
+      if (ret.raw.length > 20000)   { // policy limit size is 20480
+        console.log("POLICY_SIZE_LIMIT_EXCEED", loggerArn);
+        continue;
+      }
+    }
+
+    console.log("SUBSCRIBE", logGroup, "==>", loggerArn);
+
+    await lambda.addPermission({
+      Action: "lambda:InvokeFunction",
+      FunctionName: loggerArn,
+      Principal: `logs.${Region}.amazonaws.com`,
+      SourceArn: `arn:aws:logs:${Region}:${AccountId}:log-group:${logGroup}:*`,
+      StatementId: stmtId,
+    }).promise().catch(err => { console.log("Error on addPermission:", err) });
+
+    await logs.putSubscriptionFilter({
+      logGroupName: logGroup,
+      filterName: logGroup,
+      filterPattern: '',
+      destinationArn: loggerArn,
+    }).promise().catch(err => { console.log("Error on putSubscriptionFilter:", err) });
+  }
+}
+
+
+async function DeleteLogGroup (logGroup, loggerArns) {
+  const splitted  = logGroup.split('/');
+  const stmtId = splitted[splitted.length - 1];
+
+  for (const loggerArn of loggerArns) {
+    const ret = await lambda.getPolicy({ FunctionName: loggerArn }).promise()
+      .then(ret => { return { raw: ret.Policy, data: JSON.parse(ret.Policy) }; })
+      .catch(err => null);
+
+    if (ret)    {
+      // policy exist check
+      if (ret.data.Statement.filter(s => s.Sid === stmtId).length == 0)  {
+        console.log("NOT_EXIST", loggerArn)
+        continue;
+      }
+    }
+
+    console.log("UNSUBSCRIBE", logGroup, "==>", loggerArn);
+
+    await lambda.removePermission({ FunctionName: loggerArn, StatementId: stmtId })
+      .promise()
+      .catch(err => { console.log("Error on removePermission:", err) });
+  }
+}
+
+
 module.exports.appender = async (event, context, callback) => {
   const logGroup = event.detail.requestParameters.logGroupName;
   const skipLogGroup = process.env.SKIP_LOG_GROUP.split(',');
@@ -67,47 +141,23 @@ module.exports.appender = async (event, context, callback) => {
   }
 
   try {
-    const loggerLambdaArn = await lambda.getFunction({ FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME })
+    const thisArn = await lambda.getFunction({ FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME })
       .promise()
-      .then(data => data.Configuration.FunctionArn.replace('appender', 'main'));
+      .then(data => data.Configuration.FunctionArn);
 
-    const arn       = loggerLambdaArn.split(":");
-    const Region    = arn[3];
-    const AccountId = arn[4];
-    const splitted  = logGroup.split('/');
-    const basename  = splitted[splitted.length - 1];
+    const loggerArns = ['main', 'main2'].map(t => thisArn.replace('appender', t));
 
     if (event.detail.eventName === "CreateLogGroup") {
-      console.log("SUBSCRIBE", logGroup);
-
-      await lambda.addPermission({
-        Action: "lambda:InvokeFunction",
-        FunctionName: loggerLambdaArn,
-        Principal: `logs.${Region}.amazonaws.com`,
-        SourceArn: `arn:aws:logs:${Region}:${AccountId}:log-group:${logGroup}:*`,
-        StatementId: basename,
-      }).promise();
-
-      await logs.putSubscriptionFilter({
-        logGroupName: logGroup,
-        filterName: logGroup,
-        filterPattern: '',
-        destinationArn: loggerLambdaArn,
-      }).promise();
+        await CreateLogGroup(logGroup, loggerArns);
     }
 
     if (event.detail.eventName === "DeleteLogGroup") {
-      console.log("UNSUBSCRIBE", logGroup);
-
-      await lambda.removePermission({
-        FunctionName: loggerLambdaArn,
-        StatementId: basename,
-      }).promise();
+        await DeleteLogGroup(logGroup, loggerArns);
     }
 
-    callback(null,"OK");
+    callback(null, "OK");
   } catch (err) {
     console.log("Error:", err);
-    callback(err);
+    callback(null, err);
   }
 };
