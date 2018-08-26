@@ -80,12 +80,12 @@ async function CreateLogGroup (logGroup, loggerArns) {
 
     if (ret)    {
       if (ret.raw.length > 20000)   { // policy limit size is 20480
-        console.log("POLICY_SIZE_LIMIT_EXCEED", loggerArn);
+        console.log("POLICY_SIZE_LIMIT", loggerArn);
         continue;
       }
     }
 
-    console.log("SUBSCRIBE", logGroup, "==>", loggerArn);
+    console.log("SUBSCRIBE", logGroup, "to", loggerArn);
 
     await lambda.addPermission({
       Action: "lambda:InvokeFunction",
@@ -104,7 +104,6 @@ async function CreateLogGroup (logGroup, loggerArns) {
   }
 }
 
-
 async function DeleteLogGroup (logGroup, loggerArns) {
   const splitted  = logGroup.split('/');
   const stmtId = splitted[splitted.length - 1];
@@ -117,12 +116,12 @@ async function DeleteLogGroup (logGroup, loggerArns) {
     if (ret)    {
       // policy exist check
       if (ret.data.Statement.filter(s => s.Sid === stmtId).length == 0)  {
-        console.log("NOT_EXIST", loggerArn)
+        console.log("NOT_EXIST", stmtId, "on", loggerArn);
         continue;
       }
     }
 
-    console.log("UNSUBSCRIBE", logGroup, "==>", loggerArn);
+    console.log("UNSUBSCRIBE", logGroup, "from", loggerArn);
 
     await lambda.removePermission({ FunctionName: loggerArn, StatementId: stmtId })
       .promise()
