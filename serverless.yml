@@ -54,7 +54,10 @@ resources:
   Resources:
     MainLogGroup:
       Properties:
-        RetentionInDays: 7
+        RetentionInDays: 1
+    Main2LogGroup:
+      Properties:
+        RetentionInDays: 1
 
     IamRoleLambdaExecution:
       Properties:
