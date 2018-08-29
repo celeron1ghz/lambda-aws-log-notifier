@@ -132,6 +132,7 @@ async function CreateLogGroup (logGroup, loggerArns) {
       filterPattern: '',
       destinationArn: loggerArn,
     }).promise().catch(err => { console.log("Error on putSubscriptionFilter:", err) });
+    return;
   }
 }
 
@@ -157,5 +158,6 @@ async function DeleteLogGroup (logGroup, loggerArns) {
     await lambda.removePermission({ FunctionName: loggerArn, StatementId: stmtId })
       .promise()
       .catch(err => { console.log("Error on removePermission:", err) });
+    return;
   }
 }
