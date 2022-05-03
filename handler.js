@@ -73,7 +73,7 @@ module.exports.appender = async (event, context, callback) => {
 
     const loggerArns = ['main', 'main2'].map(t => thisArn.replace('appender', t));
 
-    if (event.detail.eventName === "CreateLogGroup") {
+    if (event.detail.eventName === "CreateLogGroup" && logGroup.match(/^aws\/lambda/)) {
         await CreateLogGroup(logGroup, loggerArns);
     }
 

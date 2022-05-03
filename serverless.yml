@@ -2,7 +2,7 @@ service: aws-log-notifier
 
 provider:
   name: aws
-  runtime: nodejs8.10
+  runtime: nodejs14.x
   stage: dev
   region: ap-northeast-1
   deploymentBucket: serverless-upload-ap-northeast-1
@@ -29,13 +29,13 @@ functions:
     handler: handler.main
     description: cloudwatch logs data send to slack
     environment:
-      SLACK_WEBHOOK_URL: "${ssm:/slack/webhook/rawLog~true}"
+      SLACK_WEBHOOK_URL: "${ssm:/slack/webhook/rawLog}"
 
   main2:
     handler: handler.main
     description: cloudwatch logs data send to slack
     environment:
-      SLACK_WEBHOOK_URL: "${ssm:/slack/webhook/rawLog~true}"
+      SLACK_WEBHOOK_URL: "${ssm:/slack/webhook/rawLog}"
 
   appender:
     handler: handler.appender
